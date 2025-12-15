@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Table App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        thead {
+            background: #f9f9f9;
+        }
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover {
+            background: #f0f0f0;
+        }
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.3;
+        }
+        th.sorted-asc::after {
+            content: ' ▲';
+            opacity: 1;
+        }
+        th.sorted-desc::after {
+            content: ' ▼';
+            opacity: 1;
+        }
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            color: #666;
+        }
+        tr:hover {
+            background: #f9f9f9;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .page-info {
+            color: #666;
+        }
+        .page-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Employee Database</h1>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="totalEmployees">0</div>
+                <div class="stat-label">Total Employees</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="activeEmployees">0</div>
+                <div class="stat-label">Active</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgSalary">$0</div>
+                <div class="stat-label">Avg Salary</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search by name, email, or department..." oninput="filterData()">
+            </div>
+            <select id="departmentFilter" onchange="filterData()">
+                <option value="">All Departments</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Sales">Sales</option>
+                <option value="HR">HR</option>
+                <option value="Finance">Finance</option>
+            </select>
+            <select id="statusFilter" onchange="filterData()">
+                <option value="">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Pending">Pending</option>
+            </select>
+            <button onclick="loadData()">Refresh Data</button>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortTable('id')">ID</th>
+                        <th class="sortable" onclick="sortTable('name')">Name</th>
+                        <th class="sortable" onclick="sortTable('email')">Email</th>
+                        <th class="sortable" onclick="sortTable('department')">Department</th>
+                        <th class="sortable" onclick="sortTable('salary')">Salary</th>
+                        <th class="sortable" onclick="sortTable('status')">Status</th>
+                        <th class="sortable" onclick="sortTable('joinDate')">Join Date</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination">
+            <div class="page-info" id="pageInfo"></div>
+            <div class="page-buttons">
+                <button onclick="prevPage()">Previous</button>
+                <button onclick="nextPage()">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock database
+        const database = [
+            { id: 1, name: "John Smith", email: "john.smith@company.com", department: "Engineering", salary: 85000, status: "Active", joinDate: "2020-01-15" },
+            { id: 2, name: "Sarah Johnson", email: "sarah.j@company.com", department: "Marketing", salary: 72000, status: "Active", joinDate: "2019-06-20" },
+            { id: 3, name: "Mike Williams", email: "mike.w@company.com", department: "Sales", salary: 68000, status: "Active", joinDate: "2021-03-10" },
+            { id: 4, name: "Emily Brown", email: "emily.b@company.com", department: "HR", salary: 65000, status: "Pending", joinDate: "2023-01-05" },
+            { id: 5, name: "David Lee", email: "david.lee@company.com", department: "Engineering", salary: 92000, status: "Active", joinDate: "2018-11-12" },
+            { id: 6, name: "Lisa Garcia", email: "lisa.g@company.com", department: "Finance", salary: 78000, status: "Active", joinDate: "2020-08-22" },
+            { id: 7, name: "James Wilson", email: "james.w@company.com", department: "Engineering", salary: 88000, status: "Inactive", joinDate: "2019-04-17" },
+            { id: 8, name: "Maria Martinez", email: "maria.m@company.com", department: "Marketing", salary: 71000, status: "Active", joinDate: "2021-09-30" },
+            { id: 9, name: "Robert Taylor", email: "robert.t@company.com", department: "Sales", salary: 75000, status: "Active", joinDate: "2020-02-14" },
+            { id: 10, name: "Jennifer Anderson", email: "jennifer.a@company.com", department: "HR", salary: 69000, status: "Active", joinDate: "2022-05-08" },
+            { id: 11, name: "Michael Thomas", email: "michael.t@company.com", department: "Finance", salary: 82000, status: "Active", joinDate: "2019-12-01" },
+            { id: 12, name: "Jessica Moore", email: "jessica.m@company.com", department: "Engineering", salary: 95000, status: "Active", joinDate: "2018-07-25" },
+            { id: 13, name: "Christopher Jackson", email: "chris.j@company.com", department: "Sales", salary: 73000, status: "Pending", joinDate: "2023-02-15" },
+            { id: 14, name: "Ashley White", email: "ashley.w@company.com", department: "Marketing", salary: 70000, status: "Active", joinDate: "2021-11-20" },
+            { id: 15, name: "Daniel Harris", email: "daniel.h@company.com", department: "Engineering", salary: 87000, status: "Active", joinDate: "2020-09-05" }
+        ];
+
+        let filteredData = [...database];
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        let sortColumn = '';
+        let sortDirection = 'asc';
+
+        function loadData() {
+            filteredData = [...database];
+            currentPage = 1;
+            updateStats();
+            renderTable();
+        }
+
+        function updateStats() {
+            document.getElementById('totalEmployees').textContent = database.length;
+            document.getElementById('activeEmployees').textContent = database.filter(e => e.status === 'Active').length;
+
+            const avgSalary = database.reduce((sum, e) => sum + e.salary, 0) / database.length;
+            document.getElementById('avgSalary').textContent = '$' + avgSalary.toLocaleString();
+        }
+
+        function filterData() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const dept = document.getElementById('departmentFilter').value;
+            const status = document.getElementById('statusFilter').value;
+
+            filteredData = database.filter(employee => {
+                const matchSearch = employee.name.toLowerCase().includes(search) ||
+                                  employee.email.toLowerCase().includes(search) ||
+                                  employee.department.toLowerCase().includes(search);
+                const matchDept = !dept || employee.department === dept;
+                const matchStatus = !status || employee.status === status;
+
+                return matchSearch && matchDept && matchStatus;
+            });
+
+            currentPage = 1;
+            renderTable();
+        }
+
+        function sortTable(column) {
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+
+            filteredData.sort((a, b) => {
+                let aVal = a[column];
+                let bVal = b[column];
+
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            updateSortIndicators(column);
+            renderTable();
+        }
+
+        function updateSortIndicators(column) {
+            document.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+            });
+
+            const th = document.querySelector(`th[onclick="sortTable('${column}')"]`);
+            if (th) {
+                th.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            }
+        }
+
+        function renderTable() {
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageData = filteredData.slice(start, end);
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = pageData.map(emp => `
+                <tr>
+                    <td>${emp.id}</td>
+                    <td><strong>${emp.name}</strong></td>
+                    <td>${emp.email}</td>
+                    <td>${emp.department}</td>
+                    <td>$${emp.salary.toLocaleString()}</td>
+                    <td><span class="status ${emp.status.toLowerCase()}">${emp.status}</span></td>
+                    <td>${emp.joinDate}</td>
+                </tr>
+            `).join('');
+
+            updatePagination();
+        }
+
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+            const start = (currentPage - 1) * itemsPerPage + 1;
+            const end = Math.min(start + itemsPerPage - 1, filteredData.length);
+
+            document.getElementById('pageInfo').textContent =
+                `Showing ${start}-${end} of ${filteredData.length} employees`;
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>

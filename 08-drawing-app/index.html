@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .toolbar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .tool-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        label {
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="color"] {
+            width: 50px;
+            height: 40px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        input[type="range"] {
+            width: 120px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .tool-btn {
+            padding: 10px 15px;
+            background: #f0f0f0;
+            color: #333;
+        }
+        .tool-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        #canvas {
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            cursor: crosshair;
+            background: white;
+            display: block;
+        }
+        .size-display {
+            min-width: 30px;
+            text-align: center;
+            color: #667eea;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Drawing App</h1>
+
+        <div class="toolbar">
+            <div class="tool-group">
+                <label>Tool:</label>
+                <button class="tool-btn active" id="brushBtn" onclick="setTool('brush')">Brush</button>
+                <button class="tool-btn" id="eraserBtn" onclick="setTool('eraser')">Eraser</button>
+            </div>
+
+            <div class="tool-group">
+                <label>Color:</label>
+                <input type="color" id="colorPicker" value="#000000" onchange="updateColor()">
+            </div>
+
+            <div class="tool-group">
+                <label>Size:</label>
+                <input type="range" id="brushSize" min="1" max="50" value="5" oninput="updateSize()">
+                <span class="size-display" id="sizeDisplay">5</span>
+            </div>
+
+            <div class="tool-group">
+                <button onclick="clearCanvas()">Clear</button>
+                <button onclick="downloadDrawing()">Download</button>
+            </div>
+        </div>
+
+        <canvas id="canvas" width="800" height="600"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let isDrawing = false;
+        let currentTool = 'brush';
+        let currentColor = '#000000';
+        let brushSize = 5;
+        let lastX = 0;
+        let lastY = 0;
+
+        // Set canvas background to white for download
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Touch support for mobile
+        canvas.addEventListener('touchstart', handleTouch);
+        canvas.addEventListener('touchmove', handleTouch);
+        canvas.addEventListener('touchend', stopDrawing);
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = currentTool === 'eraser' ? 'white' : currentColor;
+            ctx.lineWidth = brushSize;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            lastX = x;
+            lastY = y;
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+
+            if (e.type === 'touchstart') {
+                startDrawing(mouseEvent);
+            } else if (e.type === 'touchmove') {
+                draw(mouseEvent);
+            }
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            if (tool === 'brush') {
+                document.getElementById('brushBtn').classList.add('active');
+            } else {
+                document.getElementById('eraserBtn').classList.add('active');
+            }
+        }
+
+        function updateColor() {
+            currentColor = document.getElementById('colorPicker').value;
+            if (currentTool === 'eraser') {
+                setTool('brush');
+            }
+        }
+
+        function updateSize() {
+            brushSize = document.getElementById('brushSize').value;
+            document.getElementById('sizeDisplay').textContent = brushSize;
+        }
+
+        function clearCanvas() {
+            if (confirm('Are you sure you want to clear the canvas?')) {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function downloadDrawing() {
+            const link = document.createElement('a');
+            link.download = 'my-drawing.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>
